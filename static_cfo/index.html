@@ -170,6 +170,18 @@
     }
     .out.empty { display: none; }
     .out.err { color: var(--red); }
+    .out-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-top: 1.25rem;
+      margin-bottom: 0.4rem;
+    }
+    .out-label:first-of-type { margin-top: 1rem; }
+    .rec-box {
+      border-left: 4px solid var(--accent);
+      background: var(--accent-soft);
+    }
     .status-bar {
       display: inline-flex;
       align-items: center;
@@ -213,7 +225,10 @@
           </div>
           <input type="file" id="receipt-file" accept="image/*" />
           <button type="button" class="primary" id="btn-receipt" disabled>Analyze receipt</button>
+          <div class="out-label">Result</div>
           <div id="out-receipt" class="out empty"></div>
+          <div class="out-label">Recommendations</div>
+          <div id="out-receipt-rec" class="out rec-box empty"></div>
         </div>
       </div>
 
@@ -227,7 +242,10 @@
           </div>
           <input type="file" id="salary-file" accept="image/*,application/pdf" />
           <button type="button" class="primary" id="btn-salary" disabled>Analyze</button>
+          <div class="out-label">Result</div>
           <div id="out-salary" class="out empty"></div>
+          <div class="out-label">Recommendations</div>
+          <div id="out-salary-rec" class="out rec-box empty"></div>
         </div>
       </div>
 
@@ -238,7 +256,10 @@
           <label>Statement text</label>
           <textarea id="statement-text" placeholder="Paste your statement or transaction list…"></textarea>
           <button type="button" class="primary" id="btn-statement">Explain</button>
+          <div class="out-label">Result</div>
           <div id="out-statement" class="out empty"></div>
+          <div class="out-label">Recommendations</div>
+          <div id="out-statement-rec" class="out rec-box empty"></div>
         </div>
       </div>
 
@@ -249,7 +270,10 @@
           <label>Message to check</label>
           <textarea id="fraud-text" placeholder="Paste SMS, email or message…"></textarea>
           <button type="button" class="primary" id="btn-fraud">Check</button>
+          <div class="out-label">Result</div>
           <div id="out-fraud" class="out empty"></div>
+          <div class="out-label">Recommendations</div>
+          <div id="out-fraud-rec" class="out rec-box empty"></div>
         </div>
       </div>
 
@@ -267,7 +291,10 @@
             <div class="field"><label>Years</label><input type="number" id="goal-years" placeholder="5" min="1" max="40" /></div>
           </div>
           <button type="button" class="primary" id="btn-goal">Plan</button>
+          <div class="out-label">Result</div>
           <div id="out-goal" class="out empty"></div>
+          <div class="out-label">Recommendations</div>
+          <div id="out-goal-rec" class="out rec-box empty"></div>
         </div>
       </div>
 
@@ -281,7 +308,10 @@
             <div class="field"><label>EMI (₹/month)</label><input type="number" id="score-emi" placeholder="15000" min="0" step="1000" /></div>
           </div>
           <button type="button" class="primary" id="btn-score">Get score</button>
+          <div class="out-label">Result</div>
           <div id="out-score" class="out empty"></div>
+          <div class="out-label">Recommendations</div>
+          <div id="out-score-rec" class="out rec-box empty"></div>
         </div>
       </div>
     </main>
@@ -312,9 +342,40 @@
 
     function out(id, html, isErr) {
       const el = document.getElementById(id);
+      if (!el) return;
       el.innerHTML = html;
       el.classList.remove('empty');
       el.classList.toggle('err', !!isErr);
+    }
+
+    function splitResultAndRec(data, options) {
+      const analysisKey = options?.analysisKey || 'analysis';
+      let raw = data[analysisKey];
+      if (raw == null && data.coaching != null) raw = data.coaching;
+      if (typeof raw !== 'string') raw = raw != null ? JSON.stringify(raw) : '';
+      let resultText = raw;
+      let recText = '';
+      try {
+        const cleaned = raw.replace(/^```json?\s*|\s*```$/g, '').trim();
+        const parsed = JSON.parse(cleaned);
+        const recKeys = ['improvement_suggestions', 'improvement_plan', 'prevention_tips', 'recommended_action', 'top_improvements', '30_day_plan', 'monthly_action_plan', 'habits_to_improve', 'financial_observations', 'key_weaknesses', 'manipulation_tactics', 'financial_gaps', 'investment_strategy', 'score_explanation', 'reasons'];
+        const recParts = [];
+        for (const key of recKeys) {
+          if (parsed[key] === undefined || parsed[key] === null) continue;
+          const val = parsed[key];
+          const label = key.replace(/_/g, ' ');
+          if (Array.isArray(val)) {
+            recParts.push(label + ':\n' + val.map((v, i) => (i + 1) + '. ' + (typeof v === 'string' ? v : JSON.stringify(v))).join('\n'));
+          } else {
+            recParts.push(label + ': ' + (typeof val === 'string' ? val : JSON.stringify(val)));
+          }
+        }
+        if (recParts.length) recText = recParts.join('\n\n');
+        const resultObj = {};
+        for (const k of Object.keys(parsed)) if (!recKeys.includes(k)) resultObj[k] = parsed[k];
+        resultText = Object.keys(resultObj).length ? JSON.stringify(resultObj, null, 2) : raw;
+      } catch (_) { /* keep resultText as raw */ }
+      return { result: resultText, recommendations: recText };
     }
 
     const receiptZone = document.getElementById('receipt-zone');
@@ -336,13 +397,16 @@
       const btn = document.getElementById('btn-receipt');
       btn.disabled = true;
       out('out-receipt', 'Analyzing…', false);
+      out('out-receipt-rec', '', false);
       try {
         const form = new FormData();
         form.append('file', file);
         const r = await fetch(api + '/analyze-receipt', { method: 'POST', body: form });
         const data = await r.json();
-        if (!r.ok) { out('out-receipt', 'Error: ' + (data.detail || r.status), true); return; }
-        out('out-receipt', data.analysis || '(empty)', false);
+        if (!r.ok) { out('out-receipt', 'Error: ' + (data.detail || r.status), true); out('out-receipt-rec', '', false); return; }
+        const { result, recommendations } = splitResultAndRec(data);
+        out('out-receipt', result || '(empty)', false);
+        out('out-receipt-rec', recommendations || '—', false);
       } catch (e) { out('out-receipt', e.message, true); }
       btn.disabled = false;
     };
@@ -366,13 +430,16 @@
       const btn = document.getElementById('btn-salary');
       btn.disabled = true;
       out('out-salary', 'Analyzing document…', false);
+      out('out-salary-rec', '', false);
       try {
         const form = new FormData();
         form.append('file', file);
         const r = await fetch(api + '/analyze-salary-document', { method: 'POST', body: form });
         const data = await r.json();
-        if (!r.ok) { out('out-salary', 'Error: ' + (data.detail || r.status), true); return; }
-        out('out-salary', data.analysis || '(empty)', false);
+        if (!r.ok) { out('out-salary', 'Error: ' + (data.detail || r.status), true); out('out-salary-rec', '', false); return; }
+        const { result, recommendations } = splitResultAndRec(data);
+        out('out-salary', result || '(empty)', false);
+        out('out-salary-rec', recommendations || '—', false);
       } catch (e) { out('out-salary', e.message, true); }
       btn.disabled = false;
     };
@@ -383,11 +450,14 @@
       const btn = document.getElementById('btn-statement');
       btn.disabled = true;
       out('out-statement', 'Analyzing…', false);
+      out('out-statement-rec', '', false);
       try {
         const r = await fetch(api + '/explain-statement', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ statement_text: text }) });
         const data = await r.json();
-        if (!r.ok) { out('out-statement', 'Error: ' + (data.detail || r.status), true); return; }
-        out('out-statement', data.analysis || '(empty)', false);
+        if (!r.ok) { out('out-statement', 'Error: ' + (data.detail || r.status), true); out('out-statement-rec', '', false); return; }
+        const { result, recommendations } = splitResultAndRec(data);
+        out('out-statement', result || '(empty)', false);
+        out('out-statement-rec', recommendations || '—', false);
       } catch (e) { out('out-statement', e.message, true); }
       btn.disabled = false;
     };
@@ -398,11 +468,14 @@
       const btn = document.getElementById('btn-fraud');
       btn.disabled = true;
       out('out-fraud', 'Checking…', false);
+      out('out-fraud-rec', '', false);
       try {
         const r = await fetch(api + '/detect-fraud', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text }) });
         const data = await r.json();
-        if (!r.ok) { out('out-fraud', 'Error: ' + (data.detail || r.status), true); return; }
-        out('out-fraud', data.analysis || '(empty)', false);
+        if (!r.ok) { out('out-fraud', 'Error: ' + (data.detail || r.status), true); out('out-fraud-rec', '', false); return; }
+        const { result, recommendations } = splitResultAndRec(data);
+        out('out-fraud', result || '(empty)', false);
+        out('out-fraud-rec', recommendations || '—', false);
       } catch (e) { out('out-fraud', e.message, true); }
       btn.disabled = false;
     };
@@ -416,14 +489,17 @@
       const btn = document.getElementById('btn-goal');
       btn.disabled = true;
       out('out-goal', 'Planning…', false);
+      out('out-goal-rec', '', false);
       try {
         const r = await fetch(api + '/goal-planner', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ income, expenses, emi, goal_amount, years }) });
         const data = await r.json();
-        if (!r.ok) { out('out-goal', 'Error: ' + (data.detail || r.status), true); return; }
-        let html = '';
-        if (data.required_monthly_saving != null) html += 'Required monthly saving: ₹' + data.required_monthly_saving.toLocaleString() + '\n\n';
-        html += data.analysis || data.error || '(empty)';
-        out('out-goal', html, false);
+        if (!r.ok) { out('out-goal', 'Error: ' + (data.detail || r.status), true); out('out-goal-rec', '', false); return; }
+        if (data.error) { out('out-goal', data.error, true); btn.disabled = false; return; }
+        let resultHead = '';
+        if (data.required_monthly_saving != null) resultHead = 'Required monthly saving: ₹' + data.required_monthly_saving.toLocaleString() + '\n\n';
+        const { result, recommendations } = splitResultAndRec(data);
+        out('out-goal', resultHead + (result || '(empty)'), false);
+        out('out-goal-rec', recommendations || '—', false);
       } catch (e) { out('out-goal', e.message, true); }
       btn.disabled = false;
     };
@@ -435,12 +511,20 @@
       const btn = document.getElementById('btn-score');
       btn.disabled = true;
       out('out-score', 'Calculating…', false);
+      out('out-score-rec', '', false);
       try {
         const r = await fetch(api + '/financial-score', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ income, expenses, emi }) });
         const data = await r.json();
-        if (!r.ok) { out('out-score', 'Error: ' + (data.detail || r.status), true); return; }
-        let html = 'Score: ' + (data.score ?? '–') + ' / 100\nSavings: ₹' + (data.savings ?? '–') + '\nDTI: ' + (data.dti_percent ?? '–') + '%';
-        out('out-score', html, false);
+        if (!r.ok) { out('out-score', 'Error: ' + (data.detail || r.status), true); out('out-score-rec', '', false); return; }
+        let resultText = 'Score: ' + (data.score ?? '–') + ' / 100\nSavings: ₹' + (data.savings ?? '–') + '\nDTI: ' + (data.dti_percent ?? '–') + '%';
+        if (data.coaching) {
+          const { result, recommendations } = splitResultAndRec(data, { analysisKey: 'coaching' });
+          out('out-score', resultText + '\n\n' + (result || ''), false);
+          out('out-score-rec', recommendations || '—', false);
+        } else {
+          out('out-score', resultText, false);
+          out('out-score-rec', '—', false);
+        }
       } catch (e) { out('out-score', e.message, true); }
       btn.disabled = false;
     };
