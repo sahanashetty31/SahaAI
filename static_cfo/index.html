@@ -194,6 +194,7 @@
       <div class="logo">SahaAI</div>
       <div class="logo-sub">AI CFO Dashboard</div>
       <button type="button" class="nav-btn active" data-tab="receipt"><span class="icon">🧾</span> Receipt</button>
+      <button type="button" class="nav-btn" data-tab="salary"><span class="icon">💰</span> Salary / Form 16</button>
       <button type="button" class="nav-btn" data-tab="statement"><span class="icon">📄</span> Statement</button>
       <button type="button" class="nav-btn" data-tab="fraud"><span class="icon">🛡️</span> Fraud check</button>
       <button type="button" class="nav-btn" data-tab="goal"><span class="icon">🎯</span> Goal planner</button>
@@ -213,6 +214,20 @@
           <input type="file" id="receipt-file" accept="image/*" />
           <button type="button" class="primary" id="btn-receipt" disabled>Analyze receipt</button>
           <div id="out-receipt" class="out empty"></div>
+        </div>
+      </div>
+
+      <div id="tab-salary" class="tab">
+        <h1>Salary slip / Form 16</h1>
+        <p class="desc">Upload a salary slip or Form 16 (image or PDF). We extract employer, pay, deductions, tax info and more.</p>
+        <div class="card">
+          <div class="file-zone" id="salary-zone">
+            <span class="hint">Drop salary slip or Form 16 (image / PDF) or click to choose</span>
+            <span class="name" id="salary-name"></span>
+          </div>
+          <input type="file" id="salary-file" accept="image/*,application/pdf" />
+          <button type="button" class="primary" id="btn-salary" disabled>Analyze</button>
+          <div id="out-salary" class="out empty"></div>
         </div>
       </div>
 
@@ -329,6 +344,36 @@
         if (!r.ok) { out('out-receipt', 'Error: ' + (data.detail || r.status), true); return; }
         out('out-receipt', data.analysis || '(empty)', false);
       } catch (e) { out('out-receipt', e.message, true); }
+      btn.disabled = false;
+    };
+
+    const salaryZone = document.getElementById('salary-zone');
+    const salaryInput = document.getElementById('salary-file');
+    const salaryName = document.getElementById('salary-name');
+    salaryZone.addEventListener('click', () => salaryInput.click());
+    salaryZone.addEventListener('dragover', e => { e.preventDefault(); salaryZone.classList.add('dragover'); });
+    salaryZone.addEventListener('dragleave', () => salaryZone.classList.remove('dragover'));
+    salaryZone.addEventListener('drop', e => {
+      e.preventDefault();
+      salaryZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length) { salaryInput.files = e.dataTransfer.files; salaryName.textContent = e.dataTransfer.files[0].name; document.getElementById('btn-salary').disabled = false; }
+    });
+    salaryInput.addEventListener('change', () => { salaryName.textContent = salaryInput.files?.[0]?.name || ''; document.getElementById('btn-salary').disabled = !salaryInput.files?.length; });
+
+    document.getElementById('btn-salary').onclick = async () => {
+      const file = document.getElementById('salary-file').files?.[0];
+      if (!file) return;
+      const btn = document.getElementById('btn-salary');
+      btn.disabled = true;
+      out('out-salary', 'Analyzing document…', false);
+      try {
+        const form = new FormData();
+        form.append('file', file);
+        const r = await fetch(api + '/analyze-salary-document', { method: 'POST', body: form });
+        const data = await r.json();
+        if (!r.ok) { out('out-salary', 'Error: ' + (data.detail || r.status), true); return; }
+        out('out-salary', data.analysis || '(empty)', false);
+      } catch (e) { out('out-salary', e.message, true); }
       btn.disabled = false;
     };
 

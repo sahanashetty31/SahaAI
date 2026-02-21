@@ -90,6 +90,59 @@ async def analyze_receipt(file: UploadFile = File(...)):
     return {"analysis": response.text}
 
 # ------------------------
+# 1b️⃣ Salary Slip / Form 16 Analyzer
+# ------------------------
+SALARY_DOC_MIMES = ("image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf")
+
+
+@app.post("/analyze-salary-document")
+async def analyze_salary_document(file: UploadFile = File(...)):
+    """
+    Upload a salary slip or Form 16 (image or PDF).
+    Extracts key fields and returns structured JSON.
+    """
+    raw = await file.read()
+    mime = (file.content_type or "").strip().lower()
+    if mime not in SALARY_DOC_MIMES:
+        mime = "image/jpeg"
+
+    prompt = """
+    This document is either a Salary Slip (payslip) or Form 16 (Indian tax certificate).
+
+    First identify which type it is: "salary_slip" or "form_16".
+
+    Then extract the following as applicable:
+
+    For SALARY SLIP:
+    - employer_name, employee_name, month, year
+    - gross_salary, basic_salary, hra, special_allowance (if visible)
+    - deductions: pf, professional_tax, income_tax_tds, other_deductions (as numbers)
+    - net_salary
+    - payment_date or similar if visible
+
+    For FORM 16:
+    - document_type: "Part A" or "Part B" or "Both" if visible
+    - employer_name, employee_name, pan_employee, pan_employer (if visible)
+    - assessment_year, period_from, period_to
+    - gross_salary, deductions_80c, deductions_80d, other_deductions (if visible)
+    - total_income, tax_deducted_tds, tax_payable (if visible)
+    - any other key figures in the form
+
+    Use null for any field not found. Return ONLY valid JSON with keys as above (snake_case).
+    Do not include markdown or code fences.
+    """
+
+    response = client.models.generate_content(
+        model=MODEL,
+        contents=[
+            types.Part.from_bytes(data=raw, mime_type=mime),
+            prompt,
+        ],
+        config=types.GenerateContentConfig(temperature=0),
+    )
+    return {"analysis": response.text}
+
+# ------------------------
 # 2️⃣ Bank Statement Explainer
 # ------------------------
 class StatementInput(BaseModel):
