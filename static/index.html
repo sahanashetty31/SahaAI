@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SahaAI – Personal AI CFO</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --border: #2d3a4d;
+      --text: #e6edf3;
+      --muted: #8b9cb3;
+      --accent: #22c55e;
+      --accent-dim: #16a34a;
+      --danger: #ef4444;
+      --warn: #eab308;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin: 0 0 0.25rem 0;
+      letter-spacing: -0.02em;
+    }
+    .subtitle {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-bottom: 2rem;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .card h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin: 0 0 1rem 0;
+      color: var(--accent);
+    }
+    textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 0.75rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.95rem;
+      resize: vertical;
+    }
+    textarea::placeholder { color: var(--muted); }
+    input[type="file"] {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+    }
+    button {
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 0.9rem;
+      padding: 0.6rem 1.25rem;
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover { background: var(--accent-dim); }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .result {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: var(--bg);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .result.empty { display: none; }
+    .error { color: var(--danger); }
+    .badge {
+      display: inline-block;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .badge.low { background: rgba(34, 197, 94, 0.2); color: var(--accent); }
+    .badge.moderate { background: rgba(234, 179, 8, 0.2); color: var(--warn); }
+    .badge.high { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+    .status {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 1.5rem;
+    }
+    .status.ok { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>SahaAI</h1>
+    <p class="subtitle">Personal AI CFO – test chat and image analysis</p>
+    <p id="api-status" class="status">Checking API…</p>
+
+    <div class="card">
+      <h2>Chat – financial text</h2>
+      <p style="color: var(--muted); font-size: 0.9rem; margin: 0 0 0.75rem 0;">Paste text with income, expenses, EMI. We extract numbers and analyze.</p>
+      <textarea id="chat-input" placeholder="e.g. My income is 80000, expenses 35000, EMI 15000"></textarea>
+      <br />
+      <button id="chat-btn" type="button">Analyze</button>
+      <div id="chat-result" class="result empty"></div>
+    </div>
+
+    <div class="card">
+      <h2>Image – receipt / bill</h2>
+      <p style="color: var(--muted); font-size: 0.9rem; margin: 0 0 0.75rem 0;">Upload a receipt or bill image to get description and total expense.</p>
+      <input type="file" id="image-input" accept="image/jpeg,image/png,image/webp,image/gif" />
+      <br />
+      <button id="image-btn" type="button" disabled>Analyze image</button>
+      <div id="image-result" class="result empty"></div>
+    </div>
+  </div>
+
+  <script>
+    const base = window.location.origin;
+
+    async function checkHealth() {
+      const el = document.getElementById('api-status');
+      try {
+        const r = await fetch(base + '/health');
+        const data = await r.json();
+        el.textContent = data.status || 'API OK';
+        el.classList.add('ok');
+      } catch (e) {
+        el.textContent = 'API unreachable. Is the server running?';
+        el.classList.add('error');
+      }
+    }
+    checkHealth();
+
+    function showChatResult(html, isError) {
+      const el = document.getElementById('chat-result');
+      el.innerHTML = html;
+      el.classList.remove('empty');
+      el.classList.toggle('error', !!isError);
+    }
+
+    document.getElementById('chat-btn').onclick = async () => {
+      const input = document.getElementById('chat-input').value.trim();
+      const btn = document.getElementById('chat-btn');
+      if (!input) return;
+      btn.disabled = true;
+      showChatResult('Loading…', false);
+      try {
+        const r = await fetch(base + '/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: input }),
+        });
+        const data = await r.json();
+        if (!r.ok) {
+          showChatResult('Error: ' + (data.detail || r.status), true);
+          return;
+        }
+        const a = data.analysis || {};
+        const riskClass = (a.risk_level || '').toLowerCase().includes('high') ? 'high' : (a.risk_level || '').toLowerCase().includes('moderate') ? 'moderate' : 'low';
+        let html = 'Extracted: Income ' + (data.structured_data?.income ?? '–') + ', Expenses ' + (data.structured_data?.expenses ?? '–') + ', EMI ' + (data.structured_data?.emi ?? '–') + '\n\n';
+        html += 'Savings: ' + (a.savings ?? '–') + '  |  DTI: ' + (a.dti_percent ?? '–') + '%  |  Risk: <span class="badge ' + riskClass + '">' + (a.risk_level || '–') + '</span>\n\n';
+        html += (a.advice || '');
+        showChatResult(html, false);
+      } catch (e) {
+        showChatResult('Request failed: ' + e.message, true);
+      }
+      btn.disabled = false;
+    };
+
+    document.getElementById('image-input').onchange = function () {
+      document.getElementById('image-btn').disabled = !this.files?.length;
+    };
+
+    function showImageResult(html, isError) {
+      const el = document.getElementById('image-result');
+      el.innerHTML = html;
+      el.classList.remove('empty');
+      el.classList.toggle('error', !!isError);
+    }
+
+    document.getElementById('image-btn').onclick = async () => {
+      const fileInput = document.getElementById('image-input');
+      const file = fileInput?.files?.[0];
+      const btn = document.getElementById('image-btn');
+      if (!file) return;
+      btn.disabled = true;
+      showImageResult('Loading…', false);
+      try {
+        const form = new FormData();
+        form.append('file', file);
+        const r = await fetch(base + '/analyze-image', {
+          method: 'POST',
+          body: form,
+        });
+        const data = await r.json();
+        if (!r.ok) {
+          showImageResult('Error: ' + (data.detail || r.status), true);
+          return;
+        }
+        let html = (data.extracted_text || 'No description.') + '\n\n';
+        html += 'Detected expense: ' + (data.expense_detected?.expense ?? '–');
+        showImageResult(html, false);
+      } catch (e) {
+        showImageResult('Request failed: ' + e.message, true);
+      }
+      btn.disabled = false;
+    };
+  </script>
+</body>
+</html>
