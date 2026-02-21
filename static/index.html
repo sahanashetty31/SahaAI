@@ -6,185 +6,416 @@
   <title>SahaAI – Personal AI CFO</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #0f1419;
-      --surface: #1a2332;
-      --border: #2d3a4d;
-      --text: #e6edf3;
-      --muted: #8b9cb3;
-      --accent: #22c55e;
-      --accent-dim: #16a34a;
-      --danger: #ef4444;
-      --warn: #eab308;
+      --bg: #f8faf8;
+      --bg-warm: #fefdfb;
+      --surface: #ffffff;
+      --border: #e5e9e6;
+      --border-strong: #cbd5d0;
+      --text: #1a2421;
+      --muted: #5c6b66;
+      --accent: #0d9488;
+      --accent-hover: #0f766e;
+      --accent-soft: rgba(13, 148, 136, 0.12);
+      --danger: #dc2626;
+      --warn: #ca8a04;
+      --success: #059669;
+      --shadow: 0 1px 3px rgba(0,0,0,0.06);
+      --shadow-lg: 0 10px 40px -15px rgba(0,0,0,0.12);
+      --radius: 14px;
+      --radius-sm: 10px;
     }
     * { box-sizing: border-box; }
     body {
       font-family: 'DM Sans', system-ui, sans-serif;
-      background: var(--bg);
+      background: linear-gradient(165deg, var(--bg-warm) 0%, var(--bg) 40%, #eef2f0 100%);
       color: var(--text);
       margin: 0;
       min-height: 100vh;
-      line-height: 1.5;
+      line-height: 1.55;
+      background-attachment: fixed;
     }
-    .container {
-      max-width: 720px;
-      margin: 0 auto;
-      padding: 2rem 1.5rem;
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: radial-gradient(circle at 20% 10%, rgba(13, 148, 136, 0.06) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 90%, rgba(13, 148, 136, 0.04) 0%, transparent 45%);
+      pointer-events: none;
+      z-index: 0;
     }
-    h1 {
-      font-size: 1.75rem;
+    .container { max-width: 640px; margin: 0 auto; padding: 2.5rem 1.5rem; position: relative; z-index: 1; }
+
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .logo {
+      font-family: 'Outfit', sans-serif;
+      font-size: 2rem;
       font-weight: 700;
-      margin: 0 0 0.25rem 0;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, var(--accent) 0%, #0f766e 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin: 0 0 0.35rem 0;
     }
     .subtitle {
       color: var(--muted);
       font-size: 0.95rem;
-      margin-bottom: 2rem;
+      margin: 0 0 1rem 0;
     }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      background: var(--surface);
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+    .status-pill::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--muted);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .status-pill.ok { color: var(--success); }
+    .status-pill.ok::before { background: var(--success); }
+    .status-pill.error { color: var(--danger); }
+    .status-pill.error::before { background: var(--danger); }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 1.5rem;
+      border-radius: var(--radius);
+      padding: 1.5rem 1.75rem;
       margin-bottom: 1.5rem;
+      box-shadow: var(--shadow);
+      transition: box-shadow 0.2s ease, border-color 0.2s ease;
     }
+    .card:hover { box-shadow: var(--shadow-lg); border-color: var(--border-strong); }
     .card h2 {
-      font-size: 1.1rem;
+      font-family: 'Outfit', sans-serif;
+      font-size: 1rem;
       font-weight: 600;
-      margin: 0 0 1rem 0;
-      color: var(--accent);
+      margin: 0 0 0.85rem 0;
+      color: var(--text);
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .card h2::before {
+      content: '';
+      width: 4px;
+      height: 1.1em;
+      background: linear-gradient(180deg, var(--accent), var(--accent-hover));
+      border-radius: 2px;
     }
     textarea {
       width: 100%;
-      min-height: 100px;
-      padding: 0.75rem 1rem;
+      min-height: 96px;
+      padding: 0.85rem 1rem;
       background: var(--bg);
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: var(--radius-sm);
       color: var(--text);
       font-family: inherit;
       font-size: 0.95rem;
       resize: vertical;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
-    textarea::placeholder { color: var(--muted); }
-    input[type="file"] {
-      font-size: 0.9rem;
-      color: var(--muted);
-      margin-bottom: 0.75rem;
+    textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
     }
+    textarea::placeholder { color: var(--muted); opacity: 0.9; }
+    .input-hint { color: var(--muted); font-size: 0.85rem; margin-bottom: 0.6rem; line-height: 1.45; }
+
+    .file-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius-sm);
+      padding: 1rem 1.25rem;
+      text-align: center;
+      background: var(--bg);
+      margin: 0.75rem 0 1rem 0;
+      cursor: pointer;
+      transition: border-color 0.2s ease, background 0.2s ease;
+    }
+    .file-zone:hover, .file-zone.dragover { border-color: var(--accent); background: var(--accent-soft); }
+    .file-zone .file-label { color: var(--muted); font-size: 0.9rem; }
+    .file-zone .file-name { color: var(--accent); font-size: 0.85rem; font-weight: 600; margin-top: 0.25rem; }
+    input[type="file"] { position: absolute; width: 0; height: 0; opacity: 0; }
+
+    .btn-row { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-top: 1rem; }
     button {
-      font-family: inherit;
+      font-family: 'Outfit', sans-serif;
       font-weight: 600;
       font-size: 0.9rem;
-      padding: 0.6rem 1.25rem;
-      background: var(--accent);
-      color: var(--bg);
+      padding: 0.65rem 1.4rem;
+      background: linear-gradient(180deg, var(--accent), var(--accent-hover));
+      color: #fff;
       border: none;
-      border-radius: 8px;
+      border-radius: var(--radius-sm);
       cursor: pointer;
+      box-shadow: 0 2px 8px rgba(13, 148, 136, 0.3);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
-    button:hover { background: var(--accent-dim); }
-    button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
+    button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(13, 148, 136, 0.35); }
+    button:active:not(:disabled) { transform: translateY(0); }
+    button:disabled { opacity: 0.65; cursor: not-allowed; box-shadow: none; }
+    button.secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
     }
+    button.secondary:hover:not(:disabled) { background: var(--bg); border-color: var(--border-strong); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+
     .result {
       margin-top: 1rem;
-      padding: 1rem;
+      padding: 1.1rem 1.25rem;
       background: var(--bg);
-      border-radius: 8px;
+      border-radius: var(--radius-sm);
       border: 1px solid var(--border);
       font-size: 0.9rem;
       white-space: pre-wrap;
       word-break: break-word;
+      line-height: 1.6;
     }
     .result.empty { display: none; }
     .error { color: var(--danger); }
     .badge {
       display: inline-block;
-      padding: 0.2rem 0.5rem;
-      border-radius: 6px;
-      font-size: 0.8rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 8px;
+      font-size: 0.78rem;
       font-weight: 600;
     }
-    .badge.low { background: rgba(34, 197, 94, 0.2); color: var(--accent); }
-    .badge.moderate { background: rgba(234, 179, 8, 0.2); color: var(--warn); }
-    .badge.high { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
-    .status {
-      font-size: 0.85rem;
-      color: var(--muted);
-      margin-bottom: 1.5rem;
+    .badge.low { background: rgba(5, 150, 105, 0.15); color: var(--success); }
+    .badge.moderate { background: rgba(202, 138, 4, 0.2); color: var(--warn); }
+    .badge.high { background: rgba(220, 38, 38, 0.12); color: var(--danger); }
+    #result-speak-wrap {
+      margin-top: 1rem;
+      padding: 1rem 1.25rem;
+      background: linear-gradient(135deg, var(--accent-soft) 0%, rgba(13, 148, 136, 0.06) 100%);
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(13, 148, 136, 0.2);
     }
-    .status.ok { color: var(--accent); }
+    #result-speak-wrap.empty { display: none; }
+    #result-speak-wrap .speak-label { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.5rem; }
+    #result-speak-wrap audio { width: 100%; max-width: 380px; margin-top: 0.5rem; height: 36px; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>SahaAI</h1>
-    <p class="subtitle">Personal AI CFO – test chat and image analysis</p>
-    <p id="api-status" class="status">Checking API…</p>
+    <header class="header">
+      <h1 class="logo">SahaAI</h1>
+      <p class="subtitle">Personal AI CFO — text, image, or voice in one place</p>
+      <p id="api-status" class="status-pill">Checking API…</p>
+    </header>
 
     <div class="card">
-      <h2>Chat – financial text</h2>
-      <p style="color: var(--muted); font-size: 0.9rem; margin: 0 0 0.75rem 0;">Paste text with income, expenses, EMI. We extract numbers and analyze.</p>
-      <textarea id="chat-input" placeholder="e.g. My income is 80000, expenses 35000, EMI 15000"></textarea>
-      <br />
-      <button id="chat-btn" type="button">Analyze</button>
-      <div id="chat-result" class="result empty"></div>
+      <h2>Input</h2>
+      <p class="input-hint">Paste financial text, or upload a receipt/bill image or an audio clip. Then hit Analyze and optionally hear the result.</p>
+      <textarea id="input-text" placeholder="e.g. My income is 80000, expenses 35000, EMI 15000"></textarea>
+      <label class="input-hint">Or drop a file here (image or audio):</label>
+      <div class="file-zone" id="file-zone" tabindex="0">
+        <span class="file-label" id="file-label">Click or drag image / audio</span>
+        <span class="file-name" id="file-name"></span>
+      </div>
+      <input type="file" id="input-file" accept="image/jpeg,image/png,image/webp,image/gif,audio/mpeg,audio/wav,audio/ogg,audio/webm,audio/mp4,audio/x-m4a,audio/flac" />
+      <div class="btn-row">
+        <button id="btn-analyze" type="button">Analyze</button>
+      </div>
     </div>
 
     <div class="card">
-      <h2>Image – receipt / bill</h2>
-      <p style="color: var(--muted); font-size: 0.9rem; margin: 0 0 0.75rem 0;">Upload a receipt or bill image to get description and total expense.</p>
-      <input type="file" id="image-input" accept="image/jpeg,image/png,image/webp,image/gif" />
-      <br />
-      <button id="image-btn" type="button" disabled>Analyze image</button>
-      <div id="image-result" class="result empty"></div>
+      <h2>Result</h2>
+      <div id="result-body" class="result empty"></div>
+      <div id="result-speak-wrap" class="result empty">
+        <div class="speak-label">Listen to the result</div>
+        <button id="btn-speak" type="button" class="secondary">Speak result</button>
+        <audio id="result-audio" controls></audio>
+      </div>
     </div>
   </div>
 
   <script>
     const base = window.location.origin;
+    let lastSpeakableText = '';
 
     async function checkHealth() {
       const el = document.getElementById('api-status');
       try {
         const r = await fetch(base + '/health');
         const data = await r.json();
-        el.textContent = data.status || 'API OK';
+        el.textContent = (data.status || 'API OK').replace(' 🚀', '');
         el.classList.add('ok');
+        el.classList.remove('error');
       } catch (e) {
-        el.textContent = 'API unreachable. Is the server running?';
+        el.textContent = 'API unreachable';
         el.classList.add('error');
+        el.classList.remove('ok');
       }
     }
     checkHealth();
 
-    function showChatResult(html, isError) {
-      const el = document.getElementById('chat-result');
-      el.innerHTML = html;
-      el.classList.remove('empty');
-      el.classList.toggle('error', !!isError);
+    (function setupFileZone() {
+      const zone = document.getElementById('file-zone');
+      const label = document.getElementById('file-label');
+      const nameEl = document.getElementById('file-name');
+      const input = document.getElementById('input-file');
+      zone.addEventListener('click', () => input.click());
+      zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('dragover'); });
+      zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+      zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) { input.files = e.dataTransfer.files; updateFileName(); }
+      });
+      input.addEventListener('change', updateFileName);
+      function updateFileName() {
+        const file = input.files?.[0];
+        nameEl.textContent = file ? file.name : '';
+      }
+    })();
+
+    function isImageFile(file) {
+      const t = (file.type || '').toLowerCase();
+      return t.startsWith('image/');
     }
 
-    document.getElementById('chat-btn').onclick = async () => {
-      const input = document.getElementById('chat-input').value.trim();
-      const btn = document.getElementById('chat-btn');
-      if (!input) return;
+    function isAudioFile(file) {
+      const t = (file.type || '').toLowerCase();
+      return t.startsWith('audio/');
+    }
+
+    function setResult(html, speakableText) {
+      const el = document.getElementById('result-body');
+      el.innerHTML = html;
+      el.classList.remove('empty');
+      el.classList.remove('error');
+      lastSpeakableText = speakableText || '';
+      const wrap = document.getElementById('result-speak-wrap');
+      wrap.classList.remove('empty');
+      document.getElementById('btn-speak').disabled = !lastSpeakableText;
+      document.getElementById('result-audio').removeAttribute('src');
+    }
+
+    function setError(msg) {
+      const el = document.getElementById('result-body');
+      el.innerHTML = msg;
+      el.classList.remove('empty');
+      el.classList.add('error');
+      lastSpeakableText = '';
+      document.getElementById('result-speak-wrap').classList.add('empty');
+      document.getElementById('btn-speak').disabled = true;
+    }
+
+    document.getElementById('btn-analyze').onclick = async () => {
+      const textEl = document.getElementById('input-text');
+      const fileEl = document.getElementById('input-file');
+      const file = fileEl?.files?.[0];
+      const text = (textEl?.value || '').trim();
+      const btn = document.getElementById('btn-analyze');
+
+      if (file) {
+        if (isImageFile(file)) {
+          btn.disabled = true;
+          setResult('Loading…', '');
+          try {
+            const form = new FormData();
+            form.append('file', file);
+            const r = await fetch(base + '/analyze-image', { method: 'POST', body: form });
+            const data = await r.json();
+            if (!r.ok) {
+              setError('Error: ' + (data.detail || r.status));
+              return;
+            }
+            const desc = data.extracted_text || 'No description.';
+            const expense = data.expense_detected?.expense ?? '–';
+            const speakable = desc + ' Total expense: ' + expense + '.';
+            setResult(desc + '\n\nDetected expense: ' + expense, speakable);
+          } catch (e) {
+            setError('Request failed: ' + e.message);
+          }
+          btn.disabled = false;
+          return;
+        }
+        if (isAudioFile(file)) {
+          btn.disabled = true;
+          setResult('Transcribing…', '');
+          try {
+            const form = new FormData();
+            form.append('file', file);
+            const rTranscribe = await fetch(base + '/transcribe', { method: 'POST', body: form });
+            const transcribeData = await rTranscribe.json();
+            if (!rTranscribe.ok) {
+              setError('Transcribe error: ' + (transcribeData.detail || rTranscribe.status));
+              return;
+            }
+            const transcript = (transcribeData.text || '').trim();
+            if (!transcript) {
+              setResult('(No speech detected)', '');
+              btn.disabled = false;
+              return;
+            }
+            // Run financial analysis on transcript
+            const rChat = await fetch(base + '/chat', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ message: transcript }),
+            });
+            const chatData = await rChat.json();
+            if (!rChat.ok) {
+              setResult('Transcript:\n\n' + transcript.replace(/\n/g, '<br>'), transcript);
+              btn.disabled = false;
+              return;
+            }
+            const a = chatData.analysis || {};
+            const riskClass = (a.risk_level || '').toLowerCase().includes('high') ? 'high' : (a.risk_level || '').toLowerCase().includes('moderate') ? 'moderate' : 'low';
+            let html = 'Transcript:\n' + transcript + '\n\n';
+            html += 'Extracted: Income ' + (chatData.structured_data?.income ?? '–') + ', Expenses ' + (chatData.structured_data?.expenses ?? '–') + ', EMI ' + (chatData.structured_data?.emi ?? '–') + '\n\n';
+            html += 'Savings: ' + (a.savings ?? '–') + '  |  DTI: ' + (a.dti_percent ?? '–') + '%  |  Risk: <span class="badge ' + riskClass + '">' + (a.risk_level || '–') + '</span>\n\n';
+            html += (a.advice || '');
+            const speakable = 'Income ' + (chatData.structured_data?.income ?? '') + ', expenses ' + (chatData.structured_data?.expenses ?? '') + ', EMI ' + (chatData.structured_data?.emi ?? '') + '. Savings: ' + (a.savings ?? '') + '. DTI ' + (a.dti_percent ?? '') + ' percent. Risk: ' + (a.risk_level || '') + '. ' + (a.advice || '');
+            setResult(html.replace(/\n/g, '<br>'), speakable);
+          } catch (e) {
+            setError('Request failed: ' + e.message);
+          }
+          btn.disabled = false;
+          return;
+        }
+      }
+
+      if (!text) {
+        setError('Enter text or upload an image or audio file.');
+        return;
+      }
+
       btn.disabled = true;
-      showChatResult('Loading…', false);
+      setResult('Loading…', '');
       try {
         const r = await fetch(base + '/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: input }),
+          body: JSON.stringify({ message: text }),
         });
         const data = await r.json();
         if (!r.ok) {
-          showChatResult('Error: ' + (data.detail || r.status), true);
+          setError('Error: ' + (data.detail || r.status));
           return;
         }
         const a = data.analysis || {};
@@ -192,48 +423,34 @@
         let html = 'Extracted: Income ' + (data.structured_data?.income ?? '–') + ', Expenses ' + (data.structured_data?.expenses ?? '–') + ', EMI ' + (data.structured_data?.emi ?? '–') + '\n\n';
         html += 'Savings: ' + (a.savings ?? '–') + '  |  DTI: ' + (a.dti_percent ?? '–') + '%  |  Risk: <span class="badge ' + riskClass + '">' + (a.risk_level || '–') + '</span>\n\n';
         html += (a.advice || '');
-        showChatResult(html, false);
+        const speakable = 'Income ' + (data.structured_data?.income ?? '') + ', expenses ' + (data.structured_data?.expenses ?? '') + ', EMI ' + (data.structured_data?.emi ?? '') + '. Savings: ' + (a.savings ?? '') + '. DTI ' + (a.dti_percent ?? '') + ' percent. Risk: ' + (a.risk_level || '') + '. ' + (a.advice || '');
+        setResult(html.replace(/\n/g, '<br>'), speakable);
       } catch (e) {
-        showChatResult('Request failed: ' + e.message, true);
+        setError('Request failed: ' + e.message);
       }
       btn.disabled = false;
     };
 
-    document.getElementById('image-input').onchange = function () {
-      document.getElementById('image-btn').disabled = !this.files?.length;
-    };
-
-    function showImageResult(html, isError) {
-      const el = document.getElementById('image-result');
-      el.innerHTML = html;
-      el.classList.remove('empty');
-      el.classList.toggle('error', !!isError);
-    }
-
-    document.getElementById('image-btn').onclick = async () => {
-      const fileInput = document.getElementById('image-input');
-      const file = fileInput?.files?.[0];
-      const btn = document.getElementById('image-btn');
-      if (!file) return;
+    document.getElementById('btn-speak').onclick = async () => {
+      if (!lastSpeakableText) return;
+      const btn = document.getElementById('btn-speak');
+      const audio = document.getElementById('result-audio');
       btn.disabled = true;
-      showImageResult('Loading…', false);
       try {
-        const form = new FormData();
-        form.append('file', file);
-        const r = await fetch(base + '/analyze-image', {
+        const r = await fetch(base + '/speak', {
           method: 'POST',
-          body: form,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: lastSpeakableText }),
         });
-        const data = await r.json();
         if (!r.ok) {
-          showImageResult('Error: ' + (data.detail || r.status), true);
+          const err = await r.json().catch(() => ({}));
+          setError('TTS error: ' + (err.detail || r.status));
           return;
         }
-        let html = (data.extracted_text || 'No description.') + '\n\n';
-        html += 'Detected expense: ' + (data.expense_detected?.expense ?? '–');
-        showImageResult(html, false);
+        const blob = await r.blob();
+        audio.src = URL.createObjectURL(blob);
       } catch (e) {
-        showImageResult('Request failed: ' + e.message, true);
+        setError('TTS failed: ' + e.message);
       }
       btn.disabled = false;
     };

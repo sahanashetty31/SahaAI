@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SahaAI – AI CFO Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --bg-warm: #fefefe;
+      --panel: #ffffff;
+      --panel-hover: #f0f2f5;
+      --border: #e2e6ea;
+      --border-strong: #cfd4d9;
+      --text: #1a1d21;
+      --muted: #5c636a;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --accent-glow: rgba(99, 102, 241, 0.2);
+      --accent-soft: rgba(99, 102, 241, 0.1);
+      --green: #16a34a;
+      --amber: #d97706;
+      --red: #dc2626;
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      background: linear-gradient(160deg, var(--bg-warm) 0%, var(--bg) 50%, #eef1f4 100%);
+      background-attachment: fixed;
+      color: var(--text);
+      margin: 0;
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      min-height: 100vh;
+    }
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+    }
+    .sidebar {
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      padding: 1.5rem 1rem;
+      box-shadow: 1px 0 0 rgba(0,0,0,0.04);
+    }
+    .logo {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+    }
+    .logo-sub { font-size: 0.8rem; color: var(--muted); margin-bottom: 1.5rem; }
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      width: 100%;
+      padding: 0.7rem 1rem;
+      margin-bottom: 0.35rem;
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-sm);
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: left;
+      transition: background 0.2s, color 0.2s;
+    }
+    .nav-btn:hover { background: var(--panel-hover); color: var(--text); }
+    .nav-btn.active { background: var(--accent-soft); color: var(--accent); }
+    .nav-btn .icon { font-size: 1.1rem; opacity: 0.9; }
+    .main {
+      padding: 2rem;
+      overflow-y: auto;
+    }
+    .tab { display: none; }
+    .tab.active { display: block; animation: fade 0.25s ease; }
+    @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+    .tab h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 0 0 0.35rem 0;
+      letter-spacing: -0.02em;
+    }
+    .tab .desc { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem 1.75rem;
+      margin-bottom: 1.25rem;
+      max-width: 640px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .card label { display: block; color: var(--muted); font-size: 0.85rem; margin-bottom: 0.5rem; }
+    textarea, input[type="number"], input[type="text"] {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.95rem;
+      margin-bottom: 1rem;
+    }
+    textarea::placeholder, input::placeholder { color: var(--muted); opacity: 0.8; }
+    textarea { min-height: 100px; resize: vertical; }
+    textarea:focus, input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .file-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius-sm);
+      padding: 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      margin-bottom: 1rem;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .file-zone:hover, .file-zone.dragover { border-color: var(--accent); background: var(--accent-soft); }
+    .file-zone .hint { color: var(--muted); font-size: 0.9rem; }
+    .file-zone .name { color: var(--accent); font-size: 0.85rem; margin-top: 0.35rem; font-weight: 600; }
+    input[type="file"] { position: absolute; width: 0; height: 0; opacity: 0; }
+    .row { display: flex; flex-wrap: wrap; gap: 1rem; }
+    .row .field { flex: 1; min-width: 120px; }
+    button.primary {
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 0.9rem;
+      padding: 0.7rem 1.4rem;
+      background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    button.primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4); }
+    button.primary:disabled { opacity: 0.6; cursor: not-allowed; }
+    .out {
+      margin-top: 1.25rem;
+      padding: 1.25rem;
+      background: var(--bg);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.6;
+      color: var(--text);
+    }
+    .out.empty { display: none; }
+    .out.err { color: var(--red); }
+    .status-bar {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      padding: 0.35rem 0.8rem;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .status-bar.ok { color: var(--green); }
+    .status-bar.ok::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+    .status-bar.error { color: var(--red); }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="logo">SahaAI</div>
+      <div class="logo-sub">AI CFO Dashboard</div>
+      <button type="button" class="nav-btn active" data-tab="receipt"><span class="icon">🧾</span> Receipt</button>
+      <button type="button" class="nav-btn" data-tab="statement"><span class="icon">📄</span> Statement</button>
+      <button type="button" class="nav-btn" data-tab="fraud"><span class="icon">🛡️</span> Fraud check</button>
+      <button type="button" class="nav-btn" data-tab="goal"><span class="icon">🎯</span> Goal planner</button>
+      <button type="button" class="nav-btn" data-tab="score"><span class="icon">📊</span> Health score</button>
+    </aside>
+    <main class="main">
+      <p id="status" class="status-bar">Checking API…</p>
+
+      <div id="tab-receipt" class="tab active">
+        <h1>Receipt analyzer</h1>
+        <p class="desc">Upload a receipt image. We extract merchant, amount, category and payment method.</p>
+        <div class="card">
+          <div class="file-zone" id="receipt-zone">
+            <span class="hint">Drop receipt image or click to choose</span>
+            <span class="name" id="receipt-name"></span>
+          </div>
+          <input type="file" id="receipt-file" accept="image/*" />
+          <button type="button" class="primary" id="btn-receipt" disabled>Analyze receipt</button>
+          <div id="out-receipt" class="out empty"></div>
+        </div>
+      </div>
+
+      <div id="tab-statement" class="tab">
+        <h1>Statement explainer</h1>
+        <p class="desc">Paste bank statement text for income, expense breakdown and advice.</p>
+        <div class="card">
+          <label>Statement text</label>
+          <textarea id="statement-text" placeholder="Paste your statement or transaction list…"></textarea>
+          <button type="button" class="primary" id="btn-statement">Explain</button>
+          <div id="out-statement" class="out empty"></div>
+        </div>
+      </div>
+
+      <div id="tab-fraud" class="tab">
+        <h1>Fraud detector</h1>
+        <p class="desc">Paste a message to check if it looks like a financial scam.</p>
+        <div class="card">
+          <label>Message to check</label>
+          <textarea id="fraud-text" placeholder="Paste SMS, email or message…"></textarea>
+          <button type="button" class="primary" id="btn-fraud">Check</button>
+          <div id="out-fraud" class="out empty"></div>
+        </div>
+      </div>
+
+      <div id="tab-goal" class="tab">
+        <h1>Goal planner</h1>
+        <p class="desc">See if your goal is achievable and get a savings plan.</p>
+        <div class="card">
+          <div class="row">
+            <div class="field"><label>Income (₹/month)</label><input type="number" id="goal-income" placeholder="80000" min="0" step="1000" /></div>
+            <div class="field"><label>Expenses (₹/month)</label><input type="number" id="goal-expenses" placeholder="40000" min="0" step="1000" /></div>
+            <div class="field"><label>EMI (₹/month)</label><input type="number" id="goal-emi" placeholder="15000" min="0" step="1000" /></div>
+          </div>
+          <div class="row">
+            <div class="field"><label>Goal amount (₹)</label><input type="number" id="goal-amount" placeholder="500000" min="0" step="10000" /></div>
+            <div class="field"><label>Years</label><input type="number" id="goal-years" placeholder="5" min="1" max="40" /></div>
+          </div>
+          <button type="button" class="primary" id="btn-goal">Plan</button>
+          <div id="out-goal" class="out empty"></div>
+        </div>
+      </div>
+
+      <div id="tab-score" class="tab">
+        <h1>Financial health score</h1>
+        <p class="desc">Get a 0–100 score from your income, expenses and EMI.</p>
+        <div class="card">
+          <div class="row">
+            <div class="field"><label>Income (₹/month)</label><input type="number" id="score-income" placeholder="80000" min="0" step="1000" /></div>
+            <div class="field"><label>Expenses (₹/month)</label><input type="number" id="score-expenses" placeholder="40000" min="0" step="1000" /></div>
+            <div class="field"><label>EMI (₹/month)</label><input type="number" id="score-emi" placeholder="15000" min="0" step="1000" /></div>
+          </div>
+          <button type="button" class="primary" id="btn-score">Get score</button>
+          <div id="out-score" class="out empty"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const base = window.location.origin;
+    const api = base + '/api';
+
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + tab).classList.add('active');
+      });
+    });
+
+    fetch(api + '/health').then(r => r.json()).then(d => {
+      const el = document.getElementById('status');
+      el.textContent = d.status || 'API OK';
+      el.classList.add('ok');
+    }).catch(() => {
+      document.getElementById('status').textContent = 'API offline';
+      document.getElementById('status').classList.add('error');
+    });
+
+    function out(id, html, isErr) {
+      const el = document.getElementById(id);
+      el.innerHTML = html;
+      el.classList.remove('empty');
+      el.classList.toggle('err', !!isErr);
+    }
+
+    const receiptZone = document.getElementById('receipt-zone');
+    const receiptInput = document.getElementById('receipt-file');
+    const receiptName = document.getElementById('receipt-name');
+    receiptZone.addEventListener('click', () => receiptInput.click());
+    receiptZone.addEventListener('dragover', e => { e.preventDefault(); receiptZone.classList.add('dragover'); });
+    receiptZone.addEventListener('dragleave', () => receiptZone.classList.remove('dragover'));
+    receiptZone.addEventListener('drop', e => {
+      e.preventDefault();
+      receiptZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length) { receiptInput.files = e.dataTransfer.files; receiptName.textContent = e.dataTransfer.files[0].name; document.getElementById('btn-receipt').disabled = false; }
+    });
+    receiptInput.addEventListener('change', () => { receiptName.textContent = receiptInput.files?.[0]?.name || ''; document.getElementById('btn-receipt').disabled = !receiptInput.files?.length; });
+
+    document.getElementById('btn-receipt').onclick = async () => {
+      const file = document.getElementById('receipt-file').files?.[0];
+      if (!file) return;
+      const btn = document.getElementById('btn-receipt');
+      btn.disabled = true;
+      out('out-receipt', 'Analyzing…', false);
+      try {
+        const form = new FormData();
+        form.append('file', file);
+        const r = await fetch(api + '/analyze-receipt', { method: 'POST', body: form });
+        const data = await r.json();
+        if (!r.ok) { out('out-receipt', 'Error: ' + (data.detail || r.status), true); return; }
+        out('out-receipt', data.analysis || '(empty)', false);
+      } catch (e) { out('out-receipt', e.message, true); }
+      btn.disabled = false;
+    };
+
+    document.getElementById('btn-statement').onclick = async () => {
+      const text = document.getElementById('statement-text').value.trim();
+      if (!text) return;
+      const btn = document.getElementById('btn-statement');
+      btn.disabled = true;
+      out('out-statement', 'Analyzing…', false);
+      try {
+        const r = await fetch(api + '/explain-statement', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ statement_text: text }) });
+        const data = await r.json();
+        if (!r.ok) { out('out-statement', 'Error: ' + (data.detail || r.status), true); return; }
+        out('out-statement', data.analysis || '(empty)', false);
+      } catch (e) { out('out-statement', e.message, true); }
+      btn.disabled = false;
+    };
+
+    document.getElementById('btn-fraud').onclick = async () => {
+      const text = document.getElementById('fraud-text').value.trim();
+      if (!text) return;
+      const btn = document.getElementById('btn-fraud');
+      btn.disabled = true;
+      out('out-fraud', 'Checking…', false);
+      try {
+        const r = await fetch(api + '/detect-fraud', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text }) });
+        const data = await r.json();
+        if (!r.ok) { out('out-fraud', 'Error: ' + (data.detail || r.status), true); return; }
+        out('out-fraud', data.analysis || '(empty)', false);
+      } catch (e) { out('out-fraud', e.message, true); }
+      btn.disabled = false;
+    };
+
+    document.getElementById('btn-goal').onclick = async () => {
+      const income = parseFloat(document.getElementById('goal-income').value) || 0;
+      const expenses = parseFloat(document.getElementById('goal-expenses').value) || 0;
+      const emi = parseFloat(document.getElementById('goal-emi').value) || 0;
+      const goal_amount = parseFloat(document.getElementById('goal-amount').value) || 0;
+      const years = parseInt(document.getElementById('goal-years').value, 10) || 1;
+      const btn = document.getElementById('btn-goal');
+      btn.disabled = true;
+      out('out-goal', 'Planning…', false);
+      try {
+        const r = await fetch(api + '/goal-planner', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ income, expenses, emi, goal_amount, years }) });
+        const data = await r.json();
+        if (!r.ok) { out('out-goal', 'Error: ' + (data.detail || r.status), true); return; }
+        let html = '';
+        if (data.required_monthly_saving != null) html += 'Required monthly saving: ₹' + data.required_monthly_saving.toLocaleString() + '\n\n';
+        html += data.analysis || data.error || '(empty)';
+        out('out-goal', html, false);
+      } catch (e) { out('out-goal', e.message, true); }
+      btn.disabled = false;
+    };
+
+    document.getElementById('btn-score').onclick = async () => {
+      const income = parseFloat(document.getElementById('score-income').value) || 0;
+      const expenses = parseFloat(document.getElementById('score-expenses').value) || 0;
+      const emi = parseFloat(document.getElementById('score-emi').value) || 0;
+      const btn = document.getElementById('btn-score');
+      btn.disabled = true;
+      out('out-score', 'Calculating…', false);
+      try {
+        const r = await fetch(api + '/financial-score', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ income, expenses, emi }) });
+        const data = await r.json();
+        if (!r.ok) { out('out-score', 'Error: ' + (data.detail || r.status), true); return; }
+        let html = 'Score: ' + (data.score ?? '–') + ' / 100\nSavings: ₹' + (data.savings ?? '–') + '\nDTI: ' + (data.dti_percent ?? '–') + '%';
+        out('out-score', html, false);
+      } catch (e) { out('out-score', e.message, true); }
+      btn.disabled = false;
+    };
+  </script>
+</body>
+</html>

@@ -4,4 +4,4 @@ requests
 python-dotenv
 python-multipart
 google-genai
-google-genai
+edge-tts

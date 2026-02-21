@@ -1,11 +1,13 @@
 import os
 import json
 import re
+import io
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+import edge_tts
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
@@ -153,6 +155,71 @@ Return ONLY valid JSON in this exact format:
         "extracted_text": extracted_text,
         "expense_detected": {"expense": expense},
     }
+
+# -----------------------------
+# ASR – speech to text (Gemini)
+# -----------------------------
+AUDIO_MIME_MAP = {
+    "audio/mpeg": "audio/mpeg",
+    "audio/mp3": "audio/mp3",
+    "audio/wav": "audio/wav",
+    "audio/ogg": "audio/ogg",
+    "audio/webm": "audio/webm",
+    "audio/mp4": "audio/mp4",
+    "audio/m4a": "audio/m4a",
+    "audio/flac": "audio/flac",
+    "audio/aac": "audio/aac",
+}
+
+
+@app.post("/transcribe")
+async def transcribe_audio(file: UploadFile = File(...)):
+    """Upload an audio file; returns transcript via Gemini."""
+    audio_bytes = await file.read()
+    mime = (file.content_type or "").strip().lower()
+    if mime not in AUDIO_MIME_MAP:
+        mime = "audio/mpeg"
+    try:
+        response = gemini_client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=[
+                "Transcribe this audio to text. Return only the raw transcription, nothing else. No punctuation or formatting instructions.",
+                types.Part.from_bytes(data=audio_bytes, mime_type=mime),
+            ],
+            config=types.GenerateContentConfig(temperature=0),
+        )
+        text = (response.text or "").strip()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ASR Error: {str(e)}")
+    return {"text": text}
+
+
+# -----------------------------
+# TTS – text to speech (edge-tts)
+# -----------------------------
+TTS_VOICE = "en-US-JennyNeural"
+
+
+class TTSInput(BaseModel):
+    text: str
+
+
+@app.post("/speak")
+async def text_to_speech(data: TTSInput):
+    """Convert text to speech; returns MP3 audio."""
+    text = (data.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="text is required")
+    buf = io.BytesIO()
+    try:
+        communicate = edge_tts.Communicate(text, TTS_VOICE)
+        async for chunk in communicate.stream():
+            if chunk.get("type") == "audio":
+                buf.write(chunk["data"])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"TTS Error: {str(e)}")
+    buf.seek(0)
+    return Response(content=buf.read(), media_type="audio/mpeg")
 
 # -----------------------------
 # Health Check
