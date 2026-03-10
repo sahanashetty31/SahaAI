@@ -349,6 +349,14 @@
     }
 
     function splitResultAndRec(data, options) {
+      // Prefer backend-provided recommendations when present
+      if (data.recommendations != null && String(data.recommendations).trim() !== '') {
+        const analysisKey = options?.analysisKey || 'analysis';
+        let resultText = data[analysisKey];
+        if (resultText == null && data.coaching != null) resultText = data.coaching;
+        if (typeof resultText !== 'string') resultText = resultText != null ? JSON.stringify(resultText) : '';
+        return { result: resultText, recommendations: String(data.recommendations).trim() };
+      }
       const analysisKey = options?.analysisKey || 'analysis';
       let raw = data[analysisKey];
       if (raw == null && data.coaching != null) raw = data.coaching;

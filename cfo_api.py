@@ -5,13 +5,76 @@ fraud detection, goal planner, and financial score.
 Run:  uvicorn cfo_api:app --reload --port 8001
 Docs: http://127.0.0.1:8001/docs
 """
+import json
 import os
+import re
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import Response
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+
+# Keys we treat as "recommendations" when parsing LLM JSON
+REC_KEYS = [
+    "improvement_suggestions", "improvement_plan", "prevention_tips",
+    "recommended_action", "top_improvements", "30_day_plan", "monthly_action_plan",
+    "habits_to_improve", "financial_observations", "key_weaknesses",
+    "manipulation_tactics", "financial_gaps", "investment_strategy",
+    "score_explanation", "reasons", "summary_advice",
+]
+
+
+def _extract_json(text: str) -> str | None:
+    """Get JSON string from LLM output (handles markdown code blocks and extra text)."""
+    if not text or not isinstance(text, str):
+        return None
+    text = text.strip()
+    # Try ```json ... ``` or ``` ... ```
+    match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
+    if match:
+        return match.group(1).strip()
+    # Try raw JSON object
+    start = text.find("{")
+    if start != -1:
+        depth = 0
+        for i in range(start, len(text)):
+            if text[i] == "{":
+                depth += 1
+            elif text[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    return text[start : i + 1]
+    return None
+
+
+def parse_analysis_and_recommendations(raw: str) -> tuple[str, str]:
+    """Parse LLM response; return (result_text, recommendations_text)."""
+    rec_parts = []
+    result_text = raw or ""
+    json_str = _extract_json(raw)
+    if json_str:
+        try:
+            parsed = json.loads(json_str)
+            if not isinstance(parsed, dict):
+                return result_text, ""
+            for key in REC_KEYS:
+                if key not in parsed or parsed[key] is None:
+                    continue
+                val = parsed[key]
+                label = key.replace("_", " ").title()
+                if isinstance(val, list):
+                    rec_parts.append(
+                        label + ":\n" + "\n".join(f"{i+1}. {v}" if isinstance(v, str) else f"{i+1}. {json.dumps(v)}" for i, v in enumerate(val))
+                    )
+                else:
+                    rec_parts.append(f"{label}: {val}")
+            if rec_parts:
+                result_obj = {k: v for k, v in parsed.items() if k not in REC_KEYS}
+                result_text = json.dumps(result_obj, indent=2) if result_obj else result_text
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return result_text, "\n\n".join(rec_parts) if rec_parts else ""
 
 # ------------------------
 # Setup (google.genai SDK)
@@ -68,13 +131,12 @@ async def analyze_receipt(file: UploadFile = File(...)):
     mime = file.content_type or "image/jpeg"
 
     prompt = """
-    Analyze this receipt image.
-    Extract:
-    - Merchant name
-    - Total amount
-    - Category (Food, Travel, Utilities, Shopping, EMI, Other)
-    - Payment method if visible
-    Return ONLY valid JSON.
+    Analyze this receipt image. Return ONLY valid JSON with these exact keys:
+    - merchant (string)
+    - total_amount (number)
+    - category (one of: Food, Travel, Utilities, Shopping, EMI, Other)
+    - payment_method (string if visible, else null)
+    - recommended_action (string: 1–2 short tips to save or track this expense better)
     """
     if mime not in ("image/jpeg", "image/png", "image/gif", "image/webp"):
         mime = "image/jpeg"
@@ -87,7 +149,8 @@ async def analyze_receipt(file: UploadFile = File(...)):
         ],
         config=types.GenerateContentConfig(temperature=0),
     )
-    return {"analysis": response.text}
+    result_text, rec_text = parse_analysis_and_recommendations(response.text or "")
+    return {"analysis": result_text, "recommendations": rec_text}
 
 # ------------------------
 # 2️⃣ Bank Statement Explainer
@@ -99,14 +162,13 @@ class StatementInput(BaseModel):
 def explain_statement(data: StatementInput):
 
     prompt = f"""
-    Analyze this bank statement text.
-    Provide:
-    - Total income
-    - Total expense
-    - Largest expense category
-    - Risk indicator
-    - Summary advice
-    Return JSON format.
+    Analyze this bank statement text. Return ONLY valid JSON with these keys:
+    - total_income (number)
+    - total_expense (number)
+    - largest_expense_category (string)
+    - risk_indicator (string: Low/Medium/High and brief reason)
+    - summary_advice (string)
+    - improvement_suggestions (array of 2–4 short strings: specific tips to improve finances)
     
     Text:
     {data.statement_text}
@@ -117,7 +179,8 @@ def explain_statement(data: StatementInput):
         contents=prompt,
         config=types.GenerateContentConfig(temperature=0),
     )
-    return {"analysis": response.text}
+    result_text, rec_text = parse_analysis_and_recommendations(response.text or "")
+    return {"analysis": result_text, "recommendations": rec_text}
 
 # ------------------------
 # 3️⃣ Fraud Detector
@@ -129,13 +192,11 @@ class FraudInput(BaseModel):
 def detect_fraud(data: FraudInput):
 
     prompt = f"""
-    Analyze the following message.
-    Determine if it is likely a financial scam.
-    Provide:
-    - Risk Level (Low, Medium, High)
-    - Reasons
-    - Recommended action
-    Return JSON.
+    Analyze the following message for financial scam. Return ONLY valid JSON with these keys:
+    - risk_level (string: Low, Medium, or High)
+    - reasons (string or array of strings)
+    - recommended_action (string: what the user should do)
+    - prevention_tips (array of 2–3 short strings: how to avoid such scams)
     
     Message:
     {data.message}
@@ -146,7 +207,8 @@ def detect_fraud(data: FraudInput):
         contents=prompt,
         config=types.GenerateContentConfig(temperature=0),
     )
-    return {"analysis": response.text}
+    result_text, rec_text = parse_analysis_and_recommendations(response.text or "")
+    return {"analysis": result_text, "recommendations": rec_text}
 
 # ------------------------
 # 4️⃣ Goal Planner
@@ -170,16 +232,13 @@ def goal_planner(data: GoalInput):
     required_monthly_saving = data.goal_amount / months
 
     prompt = f"""
-    User earns {data.income} per month.
-    Monthly savings: {savings}.
-    Goal: {data.goal_amount} in {data.years} years.
-    Required monthly saving: {required_monthly_saving}.
-    
-    Suggest:
-    - Is goal achievable?
-    - Adjustment needed?
-    - Investment suggestion (Low/Moderate/High risk)
-    Return JSON.
+    User earns {data.income} per month, saves {savings}/month. Goal: {data.goal_amount} in {data.years} years. Required monthly saving: {required_monthly_saving}.
+    Return ONLY valid JSON with these keys:
+    - achievable (boolean)
+    - summary (string: one line)
+    - adjustment_needed (string, if any)
+    - investment_risk (string: Low/Moderate/High)
+    - monthly_action_plan (array of 3–5 short strings: concrete steps to reach the goal)
     """
 
     response = client.models.generate_content(
@@ -187,9 +246,11 @@ def goal_planner(data: GoalInput):
         contents=prompt,
         config=types.GenerateContentConfig(temperature=0),
     )
+    result_text, rec_text = parse_analysis_and_recommendations(response.text or "")
     return {
         "required_monthly_saving": required_monthly_saving,
-        "analysis": response.text
+        "analysis": result_text,
+        "recommendations": rec_text,
     }
 
 # ------------------------
@@ -208,6 +269,27 @@ def financial_score(data: ScoreInput):
         data.expenses,
         data.emi
     )
+
+    prompt = f"""
+    User financial snapshot: income ₹{data.income}/month, expenses ₹{data.expenses}, EMI ₹{data.emi}.
+    Score: {result['score']}/100, savings ₹{result['savings']}, DTI {result['dti_percent']}%.
+    Return ONLY valid JSON with these keys:
+    - score_explanation (string: 1–2 sentences on what the score means)
+    - top_improvements (array of 3–4 short strings: specific actions to improve score)
+    - habits_to_improve (array of 2–3 short strings, optional)
+    """
+    try:
+        response = client.models.generate_content(
+            model=MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(temperature=0),
+        )
+        _result_text, rec_text = parse_analysis_and_recommendations(response.text or "")
+        result["coaching"] = _result_text
+        result["recommendations"] = rec_text
+    except Exception:
+        result["coaching"] = None
+        result["recommendations"] = ""
 
     return result
 
